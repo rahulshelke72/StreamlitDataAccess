@@ -4,6 +4,7 @@ from services.snowflake_utils import get_available_databases, get_available_sche
 from app.request_handling import submit_request, show_pending_requests, update_approval_status, get_user_requests
 
 ACCOUNTADMIN_ROLE = 'ACCOUNTADMIN'
+SYSADMIN_ROLE  = 'SYSADMIN'
 
 def render_request_form():
     """Render the form for users to submit requests"""
@@ -19,6 +20,7 @@ def render_request_form():
         databases = get_available_databases()
         if databases:
             selected_database = st.selectbox("Select a Database", databases)
+            print("Database Name",selected_database)
             request_details = selected_database
         else:
             st.warning("No databases available for selection.")
@@ -87,12 +89,13 @@ def render_request_form():
         st.write(f"Your request is currently: {request_status['status']}")
         st.write(f"Request details: {request_status['details']}")
 
+
 def render_approval_panel():
-    """Render the approval panel for admins to review requests"""
+    """Render the approval panel for admins to review requests."""
     st.subheader("Request Approval Panel")
 
     current_role = st.session_state.get("role")
-    if current_role != "admin":
+    if current_role not in [ACCOUNTADMIN_ROLE, SYSADMIN_ROLE]:
         st.warning("You must be an Admin to approve/reject requests.")
         return
 
@@ -117,19 +120,53 @@ def render_approval_panel():
             st.write(f"**Date:** {request['REQUEST_DATE']}")
             st.write(f"**Status:** {request['STATUS']}")  # Display request status (Pending, Approved, Rejected)
 
-            col1, col2 = st.columns(2)
-            if request['STATUS'] == 'PENDING':  # Only show approve/reject buttons for pending requests
-                with col1:
-                    if st.button("Approve", key=f"approve_{request['REQUEST_ID']}_{idx}"):
-                        update_approval_status(request['REQUEST_ID'], True)
-                        st.session_state.pending_requests = show_pending_requests()
+            # Show current approval status for each role
+            # Determine status for ACCOUNTADMIN_APPROVAL and SYSADMIN_APPROVAL
+            accountadmin_status = "APPROVED" if request.get('ACCOUNTADMIN_APPROVAL') is True else "REJECTED" if request.get('ACCOUNTADMIN_APPROVAL') is False else "PENDING"
+            sysadmin_status = "APPROVED" if request.get('SYSADMIN_APPROVAL') is True else "REJECTED" if request.get('SYSADMIN_APPROVAL') is False else "PENDING"
 
-                with col2:
-                    if st.button("Reject", key=f"reject_{request['REQUEST_ID']}_{idx}"):
-                        update_approval_status(request['REQUEST_ID'], False)
+            # Display the results in Streamlit
+            st.write(f"**Account Admin Approval:** {accountadmin_status}")
+            st.write(f"**Sys Admin Approval:** {sysadmin_status}")
+
+            col1, col2 = st.columns(2)
+
+            # Independent approval/rejection for Account Admin
+            if current_role == "ACCOUNTADMIN" and request['ACCOUNTADMIN_APPROVAL'] is None:
+                with col1:
+                    if st.button("Approve", key=f"approve_accountadmin_{request['REQUEST_ID']}_{idx}"):
+                        update_approval_status(request['REQUEST_ID'], True, "ACCOUNTADMIN")
                         st.session_state.pending_requests = show_pending_requests()
-            else:
-                st.info("This request has already been processed.")
+                with col2:
+                    if st.button("Reject", key=f"reject_accountadmin_{request['REQUEST_ID']}_{idx}"):
+                        rejection_reason = st.text_area("Reason for rejection (Account Admin)",
+                                                        key=f"reject_reason_accountadmin_{request['REQUEST_ID']}_{idx}")
+                        if rejection_reason:
+                            update_approval_status(request['REQUEST_ID'], False, "ACCOUNTADMIN", rejection_reason)
+                            st.session_state.pending_requests = show_pending_requests()
+                        else:
+                            st.warning("Please provide a rejection reason.")
+
+            # Independent approval/rejection for Sys Admin
+            if current_role == "SYSADMIN" and request['SYSADMIN_APPROVAL'] is None:
+                with col1:
+                    if st.button("Approve", key=f"approve_sysadmin_{request['REQUEST_ID']}_{idx}"):
+                        update_approval_status(request['REQUEST_ID'], True, "SYSADMIN")
+                        st.session_state.pending_requests = show_pending_requests()
+                with col2:
+                    if st.button("Reject", key=f"reject_sysadmin_{request['REQUEST_ID']}_{idx}"):
+                        rejection_reason = st.text_area("Reason for rejection (Sys Admin)",
+                                                        key=f"reject_reason_sysadmin_{request['REQUEST_ID']}_{idx}")
+                        if rejection_reason:
+                            update_approval_status(request['REQUEST_ID'], False, "SYSADMIN", rejection_reason)
+                            st.session_state.pending_requests = show_pending_requests()
+                        else:
+                            st.warning("Please provide a rejection reason.")
+
+            # If already processed, show message but keep buttons available for independent decisions
+            if request['STATUS'] != 'PENDING':
+                st.info(
+                    f"This request is currently marked as {request['STATUS']}.")
 
 
 def render_user_requests():

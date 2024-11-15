@@ -1,25 +1,33 @@
-from config.snowflake_connection import session
+from config.snowflake_connection import session,connector_connection
 import streamlit as st
 
 
-def get_user_role(username: str) -> str:
-    """Get the primary role of the user from the account usage grants view."""
+def get_user_role(username: str, connector_connection):
     try:
-        sql = f"""
-        SELECT DEFAULT_ROLE AS ROLE
-        FROM SNOWFLAKE.ACCOUNT_USAGE.USERS
-        WHERE NAME = '{username}'
-        LIMIT 1;
-        """
-        result = session.sql(sql).collect()[0][0]
-        if result:
-            return result
+        username_upper = username.upper()
+        query = f"SHOW GRANTS TO USER {username_upper}"
+
+        # Execute the query using the Snowflake connector connection
+        cursor = connector_connection.cursor()
+        cursor.execute(query)
+
+        # Fetch and process the results
+        grants = cursor.fetchall()
+
+        # Check if any grants are returned
+        if grants:
+            # Return the first role (assuming only one role is granted to the user)
+            role = grants[0][1].strip()  # Stripping any leading/trailing spaces
+            cursor.close()
+            return role
         else:
-            st.error(f"No roles found for user {username}.")
-            return None
+            cursor.close()
+            return None  # Return None if no grants are found
+
     except Exception as e:
-        st.error(f"Failed to retrieve role for user {username}: {e}")
+        print(f"An error occurred while retrieving grants for user {username}: {e}")
         return None
+
 
 def check_user_role():
     """Check current user's role."""
