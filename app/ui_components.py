@@ -99,12 +99,32 @@ def render_approval_panel():
         st.warning("You must be an Admin to approve/reject requests.")
         return
 
-    # Refresh requests
-    if st.button("Refresh Requests"):
-        st.session_state.pending_requests = show_pending_requests()
+    # Initialize status filter if not exists
+    if 'status_filter_admin' not in st.session_state:
+        st.session_state.status_filter_admin = 'PENDING'
 
+    # Initialize requests if not exists
     if 'pending_requests' not in st.session_state:
         st.session_state.pending_requests = show_pending_requests()
+
+    # Add status filter buttons in a horizontal layout
+    st.write("Filter by status:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🕒 Pending", key="filter_pending_admin"):
+            st.session_state.status_filter_admin = 'PENDING'
+            st.session_state.pending_requests = show_pending_requests()
+    with col2:
+        if st.button("✅ Approved", key="filter_approved_admin"):
+            st.session_state.status_filter_admin = 'APPROVED'
+            st.session_state.pending_requests = show_pending_requests()
+    with col3:
+        if st.button("❌ Rejected", key="filter_rejected_admin"):
+            st.session_state.status_filter_admin = 'REJECTED'
+            st.session_state.pending_requests = show_pending_requests()
+
+    # Add a small text indicator for current filter
+    st.caption(f"Currently showing: {st.session_state.status_filter_admin}")
 
     pending_requests = st.session_state.pending_requests
 
@@ -114,18 +134,25 @@ def render_approval_panel():
 
     df = pd.DataFrame(pending_requests)
 
+    # Filter based on selected status
+    df = df[df['STATUS'] == st.session_state.status_filter_admin]
+
+    if len(df) == 0:
+        st.info(f"No requests with status: {st.session_state.status_filter_admin}")
+        return
+
     for idx, request in df.iterrows():
         with st.expander(f"Request #{request['REQUEST_ID']} - {request['USERNAME']} - {request['REQUEST_TYPE']}"):
             st.write(f"**Details:** {request['REQUEST_DETAILS']}")
             st.write(f"**Date:** {request['REQUEST_DATE']}")
-            st.write(f"**Status:** {request['STATUS']}")  # Display request status (Pending, Approved, Rejected)
+            st.write(f"**Status:** {request['STATUS']}")
 
-            # Show current approval status for each role
-            # Determine status for ACCOUNTADMIN_APPROVAL and SYSADMIN_APPROVAL
-            accountadmin_status = "APPROVED" if request.get('ACCOUNTADMIN_APPROVAL') is True else "REJECTED" if request.get('ACCOUNTADMIN_APPROVAL') is False else "PENDING"
-            sysadmin_status = "APPROVED" if request.get('SYSADMIN_APPROVAL') is True else "REJECTED" if request.get('SYSADMIN_APPROVAL') is False else "PENDING"
+            accountadmin_status = "APPROVED" if request.get(
+                'ACCOUNTADMIN_APPROVAL') is True else "REJECTED" if request.get(
+                'ACCOUNTADMIN_APPROVAL') is False else "PENDING"
+            sysadmin_status = "APPROVED" if request.get('SYSADMIN_APPROVAL') is True else "REJECTED" if request.get(
+                'SYSADMIN_APPROVAL') is False else "PENDING"
 
-            # Display the results in Streamlit
             st.write(f"**Account Admin Approval:** {accountadmin_status}")
             st.write(f"**Sys Admin Approval:** {sysadmin_status}")
 
@@ -137,6 +164,7 @@ def render_approval_panel():
                     if st.button("Approve", key=f"approve_accountadmin_{request['REQUEST_ID']}_{idx}"):
                         update_approval_status(request['REQUEST_ID'], True, "ACCOUNTADMIN")
                         st.session_state.pending_requests = show_pending_requests()
+                        st.rerun()
                 with col2:
                     if st.button("Reject", key=f"reject_accountadmin_{request['REQUEST_ID']}_{idx}"):
                         rejection_reason = st.text_area("Reason for rejection (Account Admin)",
@@ -144,8 +172,7 @@ def render_approval_panel():
                         if rejection_reason:
                             update_approval_status(request['REQUEST_ID'], False, "ACCOUNTADMIN", rejection_reason)
                             st.session_state.pending_requests = show_pending_requests()
-                        else:
-                            st.warning("Please provide a rejection reason.")
+                            st.rerun()
 
             # Independent approval/rejection for Sys Admin
             if current_role == "SYSADMIN" and request['SYSADMIN_APPROVAL'] is None:
@@ -153,6 +180,7 @@ def render_approval_panel():
                     if st.button("Approve", key=f"approve_sysadmin_{request['REQUEST_ID']}_{idx}"):
                         update_approval_status(request['REQUEST_ID'], True, "SYSADMIN")
                         st.session_state.pending_requests = show_pending_requests()
+                        st.rerun()
                 with col2:
                     if st.button("Reject", key=f"reject_sysadmin_{request['REQUEST_ID']}_{idx}"):
                         rejection_reason = st.text_area("Reason for rejection (Sys Admin)",
@@ -160,13 +188,7 @@ def render_approval_panel():
                         if rejection_reason:
                             update_approval_status(request['REQUEST_ID'], False, "SYSADMIN", rejection_reason)
                             st.session_state.pending_requests = show_pending_requests()
-                        else:
-                            st.warning("Please provide a rejection reason.")
-
-            # If already processed, show message but keep buttons available for independent decisions
-            if request['STATUS'] != 'PENDING':
-                st.info(
-                    f"This request is currently marked as {request['STATUS']}.")
+                            st.rerun()
 
 
 def render_user_requests():
@@ -178,12 +200,32 @@ def render_user_requests():
         st.warning("You must be a User to view your requests.")
         return
 
-    # Refresh requests for the user
-    if st.button("Refresh Requests"):
-        st.session_state.user_requests = get_user_requests(st.session_state.username)
+    # Initialize status filter if not exists
+    if 'status_filter_user' not in st.session_state:
+        st.session_state.status_filter_user = 'PENDING'
 
+    # Initialize requests if not exists
     if 'user_requests' not in st.session_state:
         st.session_state.user_requests = get_user_requests(st.session_state.username)
+
+    # Add status filter buttons in a horizontal layout
+    st.write("Filter by status:")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("🕒 Pending", key="filter_pending_user"):
+            st.session_state.status_filter_user = 'PENDING'
+            st.session_state.user_requests = get_user_requests(st.session_state.username)
+    with col2:
+        if st.button("✅ Approved", key="filter_approved_user"):
+            st.session_state.status_filter_user = 'APPROVED'
+            st.session_state.user_requests = get_user_requests(st.session_state.username)
+    with col3:
+        if st.button("❌ Rejected", key="filter_rejected_user"):
+            st.session_state.status_filter_user = 'REJECTED'
+            st.session_state.user_requests = get_user_requests(st.session_state.username)
+
+    # Add a small text indicator for current filter
+    st.caption(f"Currently showing: {st.session_state.status_filter_user}")
 
     user_requests = st.session_state.user_requests
 
@@ -192,6 +234,13 @@ def render_user_requests():
         return
 
     df = pd.DataFrame(user_requests)
+
+    # Filter based on selected status
+    df = df[df['STATUS'] == st.session_state.status_filter_user]
+
+    if len(df) == 0:
+        st.info(f"No requests with status: {st.session_state.status_filter_user}")
+        return
 
     # Display each request in an expandable section
     for _, request in df.iterrows():
