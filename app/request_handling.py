@@ -103,116 +103,6 @@ def update_approval_status(request_id: int, approved: bool, role: str, rejection
         )
 
 
-# def grant_access(username: str, request_type: str, request_details: str):
-#     """Grant access to the user based on the request type."""
-#     role_name = get_user_role(username)
-#     print("Role Name :",role_name,"\nRequest Type : ",request_type)
-#     if not role_name:
-#         st.error(f"No role found for user '{username}'. Access grant aborted.")
-#         return
-#     print("In try catch")
-#     try:
-#         # Grant access based on request type
-#         if request_type == "DATABASE_ACCESS":
-#             sql_grant = f"GRANT USAGE ON DATABASE {request_details} TO ROLE {role_name};"
-#             print(sql_grant)
-#             access_type = "Database"
-#         elif request_type == "SCHEMA_ACCESS":
-#             sql_grant = f"GRANT USAGE ON SCHEMA {request_details} TO ROLE {role_name};"
-#             access_type = "Schema"
-#         elif request_type == "TABLE_ACCESS":
-#             sql_grant = f"GRANT SELECT ON TABLE {request_details} TO ROLE {role_name};"
-#             access_type = "Table"
-#         elif request_type == "ROLE_ASSIGNMENT":
-#             sql_grant = f"GRANT ROLE {request_details} TO ROLE {role_name};"
-#             access_type = "Role Assignment"
-#         elif request_type == "PERMISSION_CHANGE":
-#             sql_grant = f"GRANT {request_details} TO ROLE {role_name};"
-#             access_type = "Permission Change"
-#         else:
-#             st.warning("Unknown request type. Access grant not processed.")
-#             return
-#
-#         session.sql(sql_grant).collect()
-#         st.success(f"{access_type} access granted to role '{role_name}' for '{request_details}'.")
-#         st.info(f"Successfully executed: {sql_grant}")
-#
-#     except Exception as e:
-#         st.error(f"Failed to grant access: {str(e)}")
-
-# def grant_access(username: str, request_type: str, request_details: str):
-#     """Grant full access to the user across all schemas in the database if request_type is 'DATABASE_ACCESS'."""
-#     role_name = get_user_role(username)
-#     print("Role Name:", role_name, "\nRequest Type:", request_type)
-#
-#     if not role_name:
-#         st.error(f"No role found for user '{username}'. Access grant aborted.")
-#         return
-#
-#     try:
-#         # Grant full access if request type is for database access
-#         if request_type == "DATABASE_ACCESS":
-#             # Grant usage on the database
-#             print("Request_Details : ",request_details)
-#             sql_grant_db = f"GRANT USAGE ON DATABASE {request_type} TO ROLE {role_name};"
-#             print("done")
-#             session.sql(sql_grant_db).collect()
-#
-#             # Get all schemas in the database using INFORMATION_SCHEMA
-#             schemas_query = f"""
-#                 SELECT SCHEMA_NAME
-#                 FROM {request_type}.INFORMATION_SCHEMA.SCHEMATA;
-#             """
-#             schemas = session.sql(schemas_query).collect()
-#
-#             for schema in schemas:
-#                 schema_name = schema['SCHEMA_NAME']
-#
-#                 # Grant usage and full privileges on each schema
-#                 sql_grant_schema_usage = f"GRANT USAGE ON SCHEMA {request_type}.{schema_name} TO ROLE {role_name};"
-#                 sql_grant_all_privileges = f"GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA {request_type}.{schema_name} TO ROLE {role_name};"
-#                 sql_grant_future_privileges = f"ALTER DEFAULT PRIVILEGES IN SCHEMA {request_type}.{schema_name} GRANT ALL PRIVILEGES ON TABLES TO ROLE {role_name};"
-#
-#                 print(sql_grant_schema_usage)
-#                 print(sql_grant_all_privileges)
-#                 print(sql_grant_future_privileges)
-#
-#                 # Execute grants
-#                 session.sql(sql_grant_schema_usage).collect()
-#                 session.sql(sql_grant_all_privileges).collect()
-#                 session.sql(sql_grant_future_privileges).collect()
-#
-#             st.success(
-#                 f"Full access granted on database '{request_details}' to role '{role_name}', including all schemas and tables.")
-#             st.info(f"Successfully executed: Database-wide access grant for '{request_details}'")
-#
-#         else:
-#             # Handle other request types
-#             if request_type == "SCHEMA_ACCESS":
-#                 sql_grant = f"GRANT USAGE ON SCHEMA {request_details} TO ROLE {role_name};"
-#                 access_type = "Schema"
-#             elif request_type == "TABLE_ACCESS":
-#                 sql_grant = f"GRANT SELECT ON TABLE {request_details} TO ROLE {role_name};"
-#                 access_type = "Table"
-#             elif request_type == "ROLE_ASSIGNMENT":
-#                 sql_grant = f"GRANT ROLE {request_details} TO ROLE {role_name};"
-#                 access_type = "Role Assignment"
-#             elif request_type == "PERMISSION_CHANGE":
-#                 sql_grant = f"GRANT {request_details} TO ROLE {role_name};"
-#                 access_type = "Permission Change"
-#             else:
-#                 st.warning("Unknown request type. Access grant not processed.")
-#                 return
-#
-#             # Execute SQL grant for other request types
-#             session.sql(sql_grant).collect()
-#             st.success(f"{access_type} access granted to role '{role_name}' for '{request_details}'.")
-#             st.info(f"Successfully executed: {sql_grant}")
-#
-#     except Exception as e:
-#         st.error(f"Failed to grant access: {str(e)}")
-#
-
 def parse_request_details(request_details: str, request_type: str) -> dict:
     """Extract database, schema, and table information based on request type."""
     parsed_details = {"database": None, "schema": None, "table": None}
@@ -378,4 +268,111 @@ def get_user_requests(username):
     return session.sql(sql).collect()
 
 
+def show_roles():
+    """Display all roles in the Snowflake account with their details."""
+    sql = """
+    SELECT 
+        ROLE_ID AS "Role ID",
+        NAME AS "Role Name",
+        COMMENT AS "Comment",
+        OWNER AS "Owner",
+        ROLE_TYPE AS "Role Type",
+        ROLE_DATABASE_NAME AS "Database Name",
+        ROLE_INSTANCE_ID AS "Instance ID",
+        OWNER_ROLE_TYPE AS "Owner Role Type",
+        CREATED_ON AS "Created On",
+        DELETED_ON AS "Deleted On"
+    FROM SNOWFLAKE.ACCOUNT_USAGE.ROLES
+    ORDER BY ROLE_ID ASC;
+    """
+    return session.sql(sql).collect()
+
+
+def fetch_role_names():
+    """Fetch all role names from Snowflake."""
+    sql = "SELECT NAME FROM SNOWFLAKE.ACCOUNT_USAGE.ROLES ORDER BY NAME ASC"
+    roles = session.sql(sql).collect()
+    return [role.NAME for role in roles]
+
+
+def create_role(role_name: str, comment: str = ""):
+    """Create a new role with an optional comment."""
+    try:
+        sql = f"CREATE ROLE {role_name}"
+        if comment:
+            sql += f" COMMENT = '{comment}'"
+        session.sql(sql).collect()
+
+        # Log role creation in your requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="CREATE_ROLE",
+            request_details=f"Created role: {role_name}",
+            status="APPROVED"  # Since this is direct creation
+        )
+    except Exception as e:
+        raise Exception(f"Failed to create role: {str(e)}")
+
+
+def create_user(username: str, password: str, default_role: str):
+    """Create a new user with a default role."""
+    try:
+        sql = f"CREATE USER {username} PASSWORD = '{password}' DEFAULT_ROLE = '{default_role}'"
+        session.sql(sql).collect()
+
+        # Log user creation in your requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="CREATE_USER",
+            request_details=f"Created user: {username} with default role: {default_role}",
+            status="APPROVED"  # Since this is direct creation
+        )
+    except Exception as e:
+        raise Exception(f"Failed to create user: {str(e)}")
+
+
+def grant_role(user: str, role: str):
+    """Grant a specified role to a user."""
+    try:
+        sql = f"GRANT ROLE {role} TO USER {user}"
+        session.sql(sql).collect()
+
+        # Log role grant in your requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="GRANT_ROLE",
+            request_details=f"Granted role {role} to user {user}",
+            status="APPROVED"  # Since this is direct grant
+        )
+    except Exception as e:
+        raise Exception(f"Failed to grant role: {str(e)}")
+
+
+def revoke_role(user: str, role: str):
+    """Revoke a specified role from a user."""
+    try:
+        sql = f"REVOKE ROLE {role} FROM USER {user}"
+        session.sql(sql).collect()
+
+        # Log role revocation in your requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="REVOKE_ROLE",
+            request_details=f"Revoked role {role} from user {user}",
+            status="APPROVED"  # Since this is direct revocation
+        )
+    except Exception as e:
+        raise Exception(f"Failed to revoke role: {str(e)}")
+
+
+def log_request(username: str, request_type: str, request_details: str, status: str):
+    """Log requests in your requests table."""
+    sql = f"""
+    INSERT INTO YOUR_REQUESTS_TABLE (
+        USERNAME, REQUEST_TYPE, REQUEST_DETAILS, STATUS, REQUEST_DATE
+    ) VALUES (
+        '{username}', '{request_type}', '{request_details}', '{status}', CURRENT_TIMESTAMP()
+    )
+    """
+    session.sql(sql).collect()
 

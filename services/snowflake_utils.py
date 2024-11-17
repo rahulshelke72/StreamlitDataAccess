@@ -28,6 +28,36 @@ def get_user_role(username: str, connector_connection):
         print(f"An error occurred while retrieving grants for user {username}: {e}")
         return None
 
+def fetch_users(connector_connection):
+    try:
+        query = "SHOW USERS"
+
+        # Execute the query using the Snowflake connector connection
+        cursor = connector_connection.cursor()
+        cursor.execute(query)
+
+        # Fetch and process the results
+        users = cursor.fetchall()
+
+        # Extract column headers
+        columns = [col[0] for col in cursor.description]
+
+        # Convert the data to a list of dictionaries for better usability
+        user_list = [dict(zip(columns, row)) for row in users]
+
+        cursor.close()
+        return user_list  # Return the list of users
+
+    except Exception as e:
+        print(f"An error occurred while fetching users: {e}")
+        return []
+
+def fetch_role_names():
+    """Fetch all role names from Snowflake."""
+    sql = "SELECT NAME FROM SNOWFLAKE.ACCOUNT_USAGE.ROLES ORDER BY NAME ASC"
+    roles = session.sql(sql).collect()
+    return [role.NAME for role in roles]
+
 
 def check_user_role():
     """Check current user's role."""
@@ -62,3 +92,40 @@ def get_available_tables(database_name: str, schema_name: str):
     except Exception as e:
         st.error(f"Failed to fetch tables for schema {schema_name} in database {database_name}: {e}")
         return []
+
+def fetch_users_from_accounts(conn):
+    """
+    Fetch the list of users from the user_accounts table.
+    :param conn: Snowflake connection object
+    :return: List of users
+    """
+    query = """
+    SELECT username AS name FROM user_accounts
+    WHERE role IN ('USER', 'SYSADMIN', 'ACCOUNTADMIN');
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            users = cur.fetchall()
+        return [{"name": user[0]} for user in users]
+    except Exception as e:
+        raise Exception(f"Error fetching users: {str(e)}")
+
+
+def fetch_roles_from_accounts(conn):
+    """
+    Fetch the list of roles from the user_accounts table.
+    :param conn: Snowflake connection object
+    :return: List of roles
+    """
+    query = """
+    SELECT DISTINCT role AS name FROM user_accounts
+    WHERE role IS NOT NULL;
+    """
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+            roles = cur.fetchall()
+        return [{"name": role[0]} for role in roles]
+    except Exception as e:
+        raise Exception(f"Error fetching roles: {str(e)}")
