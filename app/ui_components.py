@@ -615,7 +615,7 @@ def render_roles_users_panel():
             st.session_state.show_roles = not st.session_state.show_roles
 
         if st.session_state.show_roles:
-            roles = fetch_role_names()
+            roles = fetch_role_names(connector_connection)
             st.dataframe(roles)
 
     # Create Role Tab
@@ -637,7 +637,7 @@ def render_roles_users_panel():
     with tab3:
         username = st.text_input("Username")
         password = st.text_input("Password", type="password")
-        roles = fetch_role_names()  # Fetch available roles for selection
+        roles = fetch_role_names(connector_connection)  # Fetch available roles for selection
         role = st.selectbox("Select Role", roles, key="create_user_role")  # Unique key for this selectbox
 
         if st.button("Create User"):
@@ -660,7 +660,7 @@ def render_roles_users_panel():
             st.error(f"Error fetching users: {str(e)}")
             usernames = []
 
-        roles = fetch_role_names()  # Fetch available roles for selection
+        roles = fetch_role_names(connector_connection)  # Fetch available roles for selection
         action = st.radio("Action", ["Grant Role", "Revoke Role"], key="role_action")  # Unique key for the radio button
 
         selected_user = st.selectbox("Select User", usernames, key="manage_user")  # Unique key for this selectbox

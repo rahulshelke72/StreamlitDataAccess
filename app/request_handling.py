@@ -296,83 +296,204 @@ def fetch_role_names():
 
 
 def create_role(role_name: str, comment: str = ""):
-    """Create a new role with an optional comment."""
+    """
+    Create a new role with an optional comment and log the action in the requests table.
+    """
     try:
+        # Construct the SQL to create the role
         sql = f"CREATE ROLE {role_name}"
         if comment:
             sql += f" COMMENT = '{comment}'"
         session.sql(sql).collect()
 
-        # Log role creation in your requests table
+        # Fetch user role from session or other context
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log role creation in the requests table
         log_request(
             username=st.session_state.username,
             request_type="CREATE_ROLE",
-            request_details=f"Created role: {role_name}",
-            status="APPROVED"  # Since this is direct creation
+            request_details=f"Created role: {role_name} with comment: '{comment}'",
+            status="APPROVED",
+            role=user_role
         )
     except Exception as e:
+        # Fetch user role from session or other context
+        user_role = st.session_state.role.lower()
+
+        # Log the failure in the requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="CREATE_ROLE",
+            request_details=f"Failed to create role: {role_name} - Error: {str(e)}",
+            status="REJECTED",
+            role=user_role,
+            approval=False,  # Assuming default rejection
+            rejection_reason=str(e)
+        )
         raise Exception(f"Failed to create role: {str(e)}")
 
-
 def create_user(username: str, password: str, default_role: str):
-    """Create a new user with a default role."""
+    """Create a new user with a default role and log the action in the requests table."""
     try:
+        # Construct the SQL to create the user
         sql = f"CREATE USER {username} PASSWORD = '{password}' DEFAULT_ROLE = '{default_role}'"
         session.sql(sql).collect()
 
-        # Log user creation in your requests table
+        # Fetch the user's role from session (could be accountadmin, sysadmin, etc.)
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log user creation in the requests table
         log_request(
             username=st.session_state.username,
             request_type="CREATE_USER",
             request_details=f"Created user: {username} with default role: {default_role}",
-            status="APPROVED"  # Since this is direct creation
+            status="APPROVED",  # Since this is a direct creation
+            role=user_role
         )
     except Exception as e:
+        # Log the failure in the requests table
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log the failure in the requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="CREATE_USER",
+            request_details=f"Failed to create user: {username} - Error: {str(e)}",
+            status="REJECTED",
+            role=user_role,
+            approval=False,  # Default rejection if creation fails
+            rejection_reason=str(e)
+        )
         raise Exception(f"Failed to create user: {str(e)}")
 
-
 def grant_role(user: str, role: str):
-    """Grant a specified role to a user."""
+    """Grant a specified role to a user and log the action in the requests table."""
     try:
+        # Construct the SQL to grant the role
         sql = f"GRANT ROLE {role} TO USER {user}"
         session.sql(sql).collect()
 
-        # Log role grant in your requests table
+        # Fetch the user's role from session (e.g., accountadmin, sysadmin)
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log role grant in the requests table
         log_request(
             username=st.session_state.username,
             request_type="GRANT_ROLE",
             request_details=f"Granted role {role} to user {user}",
-            status="APPROVED"  # Since this is direct grant
+            status="APPROVED",  # Since this is direct grant
+            role=user_role
         )
     except Exception as e:
+        # Log the failure in the requests table
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log the failure in the requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="GRANT_ROLE",
+            request_details=f"Failed to grant role {role} to user {user} - Error: {str(e)}",
+            status="REJECTED",
+            role=user_role,
+            approval=False,  # Default rejection if grant fails
+            rejection_reason=str(e)
+        )
         raise Exception(f"Failed to grant role: {str(e)}")
 
 
 def revoke_role(user: str, role: str):
-    """Revoke a specified role from a user."""
+    """Revoke a specified role from a user and log the action in the requests table."""
     try:
+        # Construct the SQL to revoke the role
         sql = f"REVOKE ROLE {role} FROM USER {user}"
         session.sql(sql).collect()
 
-        # Log role revocation in your requests table
+        # Fetch the user's role from session (e.g., accountadmin, sysadmin)
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log role revocation in the requests table
         log_request(
             username=st.session_state.username,
             request_type="REVOKE_ROLE",
             request_details=f"Revoked role {role} from user {user}",
-            status="APPROVED"  # Since this is direct revocation
+            status="APPROVED",  # Since this is direct revocation
+            role=user_role
         )
     except Exception as e:
+        # Log the failure in the requests table
+        user_role = st.session_state.role.lower()  # Assuming role is stored in session
+
+        # Log the failure in the requests table
+        log_request(
+            username=st.session_state.username,
+            request_type="REVOKE_ROLE",
+            request_details=f"Failed to revoke role {role} from user {user} - Error: {str(e)}",
+            status="REJECTED",
+            role=user_role,
+            approval=False,  # Default rejection if revoke fails
+            rejection_reason=str(e)
+        )
         raise Exception(f"Failed to revoke role: {str(e)}")
 
 
-def log_request(username: str, request_type: str, request_details: str, status: str):
-    """Log requests in your requests table."""
-    sql = f"""
-    INSERT INTO YOUR_REQUESTS_TABLE (
-        USERNAME, REQUEST_TYPE, REQUEST_DETAILS, STATUS, REQUEST_DATE
-    ) VALUES (
-        '{username}', '{request_type}', '{request_details}', '{status}', CURRENT_TIMESTAMP()
-    )
+def log_request(username: str, request_type: str, request_details: str, status: str,
+                role: str,  # Indicates the user's role: 'accountadmin' or 'sysadmin'
+                approval: bool = None, rejection_reason: str = None):
     """
-    session.sql(sql).collect()
+    Log requests in the requests table based on the role of the user.
+    If the role is 'accountadmin', populate only accountadmin columns.
+    If the role is 'sysadmin', populate only sysadmin columns.
+    """
+    try:
+        # Escape single quotes in string values
+        def escape_string(value: str) -> str:
+            return value.replace("'", "''") if value else value
 
+        # Escape input strings
+        username = escape_string(username)
+        request_type = escape_string(request_type)
+        request_details = escape_string(request_details)
+        status = escape_string(status)
+        rejection_reason = escape_string(rejection_reason) if rejection_reason else None
+
+        # Determine column and value based on role
+        if role.lower() == "accountadmin":
+            approval_column = "ACCOUNTADMIN_APPROVAL"
+            rejection_column = "ACCOUNTADMIN_REJECTION_REASON"
+        elif role.lower() == "sysadmin":
+            approval_column = "SYSADMIN_APPROVAL"
+            rejection_column = "SYSADMIN_REJECTION_REASON"
+        else:
+            raise ValueError("Invalid role. Must be 'accountadmin' or 'sysadmin'.")
+
+        # Format approval and rejection values
+        approval_value = 'NULL' if approval is None else ('TRUE' if approval else 'FALSE')
+        rejection_value = 'NULL' if rejection_reason is None else f"'{rejection_reason}'"
+
+        # Construct the SQL statement dynamically
+        sql = f"""
+        INSERT INTO RAHUL.USERS.REQUESTS (
+            USERNAME, REQUEST_TYPE, REQUEST_DETAILS, STATUS, REQUEST_DATE, 
+            {approval_column}, {rejection_column}
+        ) VALUES (
+            '{username}', '{request_type}', '{request_details}', '{status}', CURRENT_TIMESTAMP(),
+            {approval_value}, {rejection_value}
+        )
+        """
+        print("Generated SQL for log_request:")
+        print(sql)  # Debug print for SQL
+
+        # Execute the SQL
+        session.sql(sql).collect()
+        print("SQL execution successful.")  # Debug success message
+
+    except Exception as e:
+        print("Error occurred in log_request:")  # Debug error message
+        print(f"Username: {username}")
+        print(f"Request Type: {request_type}")
+        print(f"Request Details: {request_details}")
+        print(f"Status: {status}")
+        print(f"Role: {role}")
+        print(f"SQL: {sql}")  # Debug the SQL that caused the error
+        raise Exception(f"Failed to log request: {str(e)}")
