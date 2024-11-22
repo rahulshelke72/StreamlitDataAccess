@@ -7,7 +7,7 @@ from app.auth_components import handle_authentication
 
 # Configure page settings for better layout
 st.set_page_config(
-    page_title="Role Assignment System",
+    page_title="SnowAssign  ",
     page_icon="❄️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -98,7 +98,7 @@ def main():
         <div style="display: flex; align-items: center; justify-content: center; margin-top: -3rem; margin-bottom: 1rem;">
             <img src="https://streamlit.io/images/brand/streamlit-logo-secondary-colormark-darktext.svg" 
                  alt="Streamlit Logo" width="100" style="margin-right: 20px;">
-            <h1 style="margin: 0; font-size: 1.8rem; color: #0066cc;">Role Assignment System</h1>
+            <h1 style="margin: 0; font-size: 1.8rem; color: #0066cc;">SnowAssign  </h1>
         </div>
         """,
         unsafe_allow_html=True
