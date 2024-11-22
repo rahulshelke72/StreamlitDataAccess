@@ -26,19 +26,19 @@ def create_users_table():
         return False
 
 
-def hash_password(password: str) -> str:
-    """Hash password using SHA-256"""
-    return hashlib.sha256(password.encode()).hexdigest()
+# def hash_password(password: str) -> str:
+#     """Hash password using SHA-256"""
+#     return hashlib.sha256(password.encode()).hexdigest()
 
 
 def register_user(username: str, password: str, email: str, full_name: str) -> bool:
     """Register a new user in Snowflake"""
     try:
-        password_hash = hash_password(password)
+        # password_hash = hash_password(password)
         # Using string formatting with quotes for string values
         query = f"""
             INSERT INTO RAHUL.USERS.USER_ACCOUNTS (USERNAME, PASSWORD_HASH, EMAIL, FULL_NAME, ROLE)
-            VALUES ('{username}', '{password_hash}', '{email}', '{full_name}', 'user')
+            VALUES ('{username}', '{password}', '{email}', '{full_name}', 'user')
         """
         session.sql(query).collect()
         return True
@@ -50,13 +50,13 @@ def register_user(username: str, password: str, email: str, full_name: str) -> b
 def validate_user(username: str, password: str) -> dict:
     """Validate user credentials and return user data"""
     try:
-        password_hash = hash_password(password)
+        # password_hash = hash_password(password)
         # Using string formatting with quotes for string values
         query = f"""
             SELECT USERNAME, ROLE, EMAIL, FULL_NAME 
             FROM RAHUL.USERS.USER_ACCOUNTS 
             WHERE USERNAME = '{username}' 
-            AND PASSWORD_HASH = '{password_hash}' 
+            AND PASSWORD_HASH = '{password}' 
             AND STATUS = 'active'
         """
         result = session.sql(query).collect()

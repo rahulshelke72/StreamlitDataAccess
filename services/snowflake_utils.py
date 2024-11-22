@@ -28,7 +28,7 @@ def get_user_role(username: str, connector_connection):
         print(f"An error occurred while retrieving grants for user {username}: {e}")
         return None
 
-def fetch_users(connector_connection):
+def fetch_users():
     try:
         query = "SHOW USERS"
 
@@ -78,6 +78,32 @@ def fetch_role_names(connector_connection):
         print(f"An error occurred while fetching roles: {e}")
         return []
 
+
+def fetch_role_names_all_fields(connector_connection):
+    """Fetch all role details from Snowflake using 'SHOW ROLES'."""
+    try:
+        # Execute the SHOW ROLES query
+        query = "SHOW ROLES"
+        cursor = connector_connection.cursor()
+        cursor.execute(query)
+
+        # Fetch the results
+        roles = cursor.fetchall()
+
+        # Extract column headers
+        columns = [col[0] for col in cursor.description]
+
+        # Convert the data to a list of dictionaries for better usability
+        role_details = [dict(zip(columns, row)) for row in roles]
+
+        cursor.close()
+
+        # Return all the role details (including all columns)
+        return role_details
+
+    except Exception as e:
+        print(f"An error occurred while fetching roles: {e}")
+        return []
 
 
 def check_user_role():
@@ -150,3 +176,7 @@ def fetch_roles_from_accounts(conn):
         return [{"name": role[0]} for role in roles]
     except Exception as e:
         raise Exception(f"Error fetching roles: {str(e)}")
+
+
+
+

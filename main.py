@@ -1,20 +1,20 @@
 import streamlit as st
 from app.ui_components import (
     render_request_form, render_approval_panel,
-    render_user_requests, render_roles_users_panel
+    render_user_requests, render_roles_users_panel, snowflake_user
 )
 from app.auth_components import handle_authentication
 
 # Configure page settings for better layout
 st.set_page_config(
-    page_title="Snowflake Request Management",
+    page_title="Role Assignment System",
     page_icon="❄️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Custom CSS for better styling - reduced top spacing
-st.markdown("""
+st.markdown(""" 
     <style>
     /* Remove top padding from main container */
     .main {
@@ -92,10 +92,17 @@ def create_sidebar():
 
 def main():
     """Main application with improved layout and navigation"""
-    # Create the header with minimal spacing
-    st.markdown("<div style='margin-top: -3rem;'>", unsafe_allow_html=True)
-    st.markdown("<h1 class='main-header'>Snowflake Request Management System</h1>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    # Create a header with the logo and title in the same line
+    st.markdown(
+        """
+        <div style="display: flex; align-items: center; justify-content: center; margin-top: -3rem; margin-bottom: 1rem;">
+            <img src="https://streamlit.io/images/brand/streamlit-logo-secondary-colormark-darktext.svg" 
+                 alt="Streamlit Logo" width="100" style="margin-right: 20px;">
+            <h1 style="margin: 0; font-size: 1.8rem; color: #0066cc;">Role Assignment System</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     if not st.session_state.get("logged_in", False):
         handle_authentication()
@@ -108,13 +115,17 @@ def main():
 
         with main_container:
             if st.session_state.role == "user":
-                tab1, tab2 = st.tabs(["📝 Submit Request", "📊 Request Status"])
+                tab1, tab2,tab3 = st.tabs(["📝 Submit Request", "📊 Request Status","📝 Snowflake User"])
                 with tab1:
                     with st.container():
                         render_request_form()
                 with tab2:
                     with st.container():
                         render_user_requests()
+                with tab3:
+                    with st.container():
+                        snowflake_user()
+
 
             elif st.session_state.role in ["ACCOUNTADMIN", "SYSADMIN"]:
                 tab1, tab2, tab3 = st.tabs(

@@ -2,7 +2,6 @@ import streamlit as st
 from app.user_model import register_user, validate_user, create_users_table
 import re
 
-
 def is_valid_email(email: str) -> bool:
     """Validate email format"""
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -13,7 +12,15 @@ def is_valid_email(email: str) -> bool:
 
 def render_registration_form():
     """Render the registration form"""
-    st.markdown("<h2>Register New User</h2>", unsafe_allow_html=True)
+    st.markdown(
+        """
+        <div style="text-align: center;">
+            <h2>Register New User</h2>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     with st.form("registration_form"):
         username = st.text_input("Username*")
         password = st.text_input("Password*", type="password")
@@ -61,9 +68,15 @@ def render_login_form():
     """Render the login form"""
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        st.markdown('<div style="text-align: center;"><img src="your_logo_url" alt="App Logo"></div>',
-                    unsafe_allow_html=True)
-        st.markdown("<h2>Login</h2>", unsafe_allow_html=True)
+        st.markdown(
+            """
+            <div style="text-align: center;">
+                <h2>Login</h2>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
         with st.container():
             username = st.text_input("Username", key="login_username")
             password = st.text_input("Password", type="password", key="login_password")
@@ -120,3 +133,6 @@ def handle_authentication():
         if st.button("Back to Login", use_container_width=True):
             st.session_state.show_login = True
             st.rerun()
+
+
+

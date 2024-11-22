@@ -25,7 +25,7 @@ def show_pending_requests():
     """Fetch all requests with their statuses and approval columns for the admin panel"""
     sql = """
     SELECT REQUEST_ID, USERNAME, REQUEST_TYPE, REQUEST_DETAILS, REQUEST_DATE, STATUS, ACCOUNTADMIN_APPROVAL, SYSADMIN_APPROVAL
-    FROM REQUESTS 
+    FROM REQUESTS
     ORDER BY REQUEST_DATE DESC;
     """
     return session.sql(sql).collect()
@@ -80,27 +80,60 @@ def update_approval_status(request_id: int, approved: bool, role: str, rejection
     st.info(f"Request {request_id} has been updated to {final_status}.")
 
     request_details = session.sql(f"""
-        SELECT USERNAME, REQUEST_TYPE, REQUEST_DETAILS 
-        FROM REQUESTS 
+        SELECT USERNAME, REQUEST_TYPE, REQUEST_DETAILS
+        FROM REQUESTS
         WHERE REQUEST_ID = {request_id};
     """).collect()[0]
     print(request_details)
-    # # Send email notification to the user if the final status is no longer pending
-    # if final_status in ["APPROVED", "REJECTED"]:
-    #     send_user_notification_email(
-    #         request_details['USERNAME'],
-    #         request_details['REQUEST_TYPE'],
-    #         request_details['REQUEST_DETAILS'],
-    #         approved=(final_status == "APPROVED")
-    #     )
-
-    # Grant access if fully approved
-    if final_status == "APPROVED":
-        grant_access(
+    # Send email notification to the user if the final status is no longer pending
+    if final_status in ["APPROVED", "REJECTED"]:
+        send_user_notification_email(
             request_details['USERNAME'],
             request_details['REQUEST_TYPE'],
-            request_details['REQUEST_DETAILS']
+            request_details['REQUEST_DETAILS'],
+            approved=(final_status == "APPROVED")
         )
+
+    request_username = request_details['USERNAME']
+    request_type = request_details['REQUEST_TYPE']
+    request_details_content = request_details['REQUEST_DETAILS']
+
+    # Grant access or create user if fully approved
+    if final_status == "APPROVED":
+        if request_type == "USER_CREATION":
+            try:
+                # Get the password from USER_ACCOUNTS table based on the username
+                user_details = session.sql(f"""
+                       SELECT PASSWORD_HASH
+                       FROM RAHUL.USERS.USER_ACCOUNTS
+                       WHERE USERNAME = '{request_username}';
+                   """).collect()
+
+                if not user_details:
+                    raise ValueError(f"User '{request_username}' not found in USER_ACCOUNTS.")
+
+                password_hash = user_details[0]['PASSWORD_HASH']
+
+                # Extract role from request details (assuming it's part of request details)
+                request_details_parsed = parse_user_request_details(request_details_content)
+                role = request_details_parsed.get('role', 'user')  # Default to 'user' if no role provided
+
+                # Create the user
+                create_user(request_username, password_hash, role)
+                st.success(f"User '{request_username}' has been successfully created in Snowflake.")
+
+            except Exception as e:
+                # Handle failure to create user
+                st.error(f"Failed to create user '{request_username}': {e}")
+        else:
+            try:
+                # Grant access for other request types (DATABASE, TABLE, SCHEMA)
+                grant_access(request_username, request_type, request_details_content)
+                st.success(f"Access granted to user '{request_username}' for {request_type}.")
+
+            except Exception as e:
+                # Handle failure to grant access
+                st.error(f"Failed to grant access to user '{request_username}': {e}")
 
 
 def parse_request_details(request_details: str, request_type: str) -> dict:
@@ -134,6 +167,8 @@ def parse_request_details(request_details: str, request_type: str) -> dict:
         parsed_details["comments"] = additional_comments
 
     return parsed_details
+
+
 
 
 def grant_database_access(role_name: str, database: str):
@@ -261,7 +296,7 @@ def get_user_requests(username):
     """Fetch all requests for a specific user."""
     sql = f"""
     SELECT REQUEST_ID, REQUEST_TYPE, REQUEST_DETAILS, REQUEST_DATE, STATUS
-    FROM REQUESTS 
+    FROM REQUESTS
     WHERE USERNAME = '{username}'
     ORDER BY REQUEST_DATE DESC;
     """
@@ -271,7 +306,7 @@ def get_user_requests(username):
 def show_roles():
     """Display all roles in the Snowflake account with their details."""
     sql = """
-    SELECT 
+    SELECT
         ROLE_ID AS "Role ID",
         NAME AS "Role Name",
         COMMENT AS "Comment",
@@ -474,7 +509,7 @@ def log_request(username: str, request_type: str, request_details: str, status: 
         # Construct the SQL statement dynamically
         sql = f"""
         INSERT INTO RAHUL.USERS.REQUESTS (
-            USERNAME, REQUEST_TYPE, REQUEST_DETAILS, STATUS, REQUEST_DATE, 
+            USERNAME, REQUEST_TYPE, REQUEST_DETAILS, STATUS, REQUEST_DATE,
             {approval_column}, {rejection_column}
         ) VALUES (
             '{username}', '{request_type}', '{request_details}', '{status}', CURRENT_TIMESTAMP(),
@@ -497,3 +532,7 @@ def log_request(username: str, request_type: str, request_details: str, status: 
         print(f"Role: {role}")
         print(f"SQL: {sql}")  # Debug the SQL that caused the error
         raise Exception(f"Failed to log request: {str(e)}")
+
+
+
+

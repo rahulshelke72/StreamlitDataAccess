@@ -44,3 +44,7 @@ session = create_snowflake_session()
 # Optionally initialize the Snowflake connector connection for administrative tasks
 connector_connection = create_snowflake_connector_connection()
 
+
+
+
+
